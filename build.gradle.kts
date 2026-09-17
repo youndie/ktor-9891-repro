@@ -17,11 +17,23 @@ repositories {
 // differ by one file and nothing else. See PATCHING.md.
 val ktorPatch = findProperty("ktorPatch") as String?
 
+// `-PktorVersion=3.6.0` builds it against the release that carries the fix, which is the arm that
+// matters now: the patch above only ever existed to answer the question this version answers.
+val ktorVersion = (findProperty("ktorVersion") as String?) ?: "3.5.2"
+
+require(ktorPatch == null || ktorVersion == "3.5.2") {
+    "-PktorPatch patches ktor-io 3.5.2; it has nothing to substitute in $ktorVersion"
+}
+
 kotlin {
     linuxX64 {
         binaries.executable {
             entryPoint = "main"
-            baseName = "repro" + (ktorPatch?.let { "-$it" } ?: "")
+            baseName = when {
+                ktorPatch != null -> "repro-$ktorPatch"
+                ktorVersion != "3.5.2" -> "repro-$ktorVersion"
+                else -> "repro"
+            }
         }
     }
 
@@ -37,8 +49,8 @@ kotlin {
     }
 
     sourceSets.getByName("linuxX64Main").dependencies {
-        implementation("io.ktor:ktor-server-cio:3.5.2")
-        implementation("io.ktor:ktor-server-content-negotiation:3.5.2")
-        implementation("io.ktor:ktor-serialization-kotlinx-json:3.5.2")
+        implementation("io.ktor:ktor-server-cio:$ktorVersion")
+        implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
+        implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
     }
 }

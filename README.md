@@ -8,6 +8,10 @@ half cores.
 Issue: <https://youtrack.jetbrains.com/issue/KTOR-9891> · pull request:
 <https://github.com/ktorio/ktor/pull/5874>
 
+**Fixed in Ktor 3.6.0**, published 16 September 2026. The default build here is still 3.5.2, because
+that is what collapses; `-PktorVersion=3.6.0` builds the same program against the release, and
+*A/B against the fix* below is the two of them run against each other.
+
 ## Read this before running it
 
 Two things decide whether you see anything at all.
@@ -61,7 +65,28 @@ Expected, on four cores, 2 000 rps offered:
 **Concurrency, not rate, is what it cannot take.** The generator offers the same two thousand
 requests a second to all three arms.
 
-## A/B against the patch
+## A/B against the fix
+
+The fix is a version now, so the arm worth running is one build flag:
+
+```bash
+./gradlew -PktorVersion=3.6.0 linkReleaseExecutableLinuxX64
+BIN=build/bin/linuxX64/releaseExecutable/repro-3.6.0.kexe ./run.sh
+```
+
+Twelve rounds per arm, the two releases interleaved run for run on the stand below, 200 connections
+and 2 000 rps offered:
+
+| Build | Slow runs | p99 (median) | Requests served in 30 s |
+|---|---|---|---|
+| 3.5.2 | 12 of 12 | 1.50 s | 6 850 |
+| 3.6.0 | **0 of 12** | 23.7 ms | 59 700 |
+
+p = 7.4 × 10⁻⁷. In 3.6.0 `ktor-io`'s `SynchronizedObject` keeps its class and delegates its three
+methods to `kotlinx.atomicfu.locks`; `DefaultPool` is untouched, so the header pools are still
+process-wide and it is the lock under them that stopped allocating.
+
+### Before the release, against a patched `ktor-io`
 
 `PATCHING.md` has the four lines that build `ktor-io` with the pull request's change and publish it
 locally. Then:
@@ -80,6 +105,11 @@ dependency:
 | pool made lock-free | 0/12 | 11.3 ms | 59 924 | 0/12 | 7.8 ms |
 | lock delegated to atomicfu (the PR) | 0/12 | 8.4 ms | 59 928 | 0/12 | 6.5 ms |
 | both | 0/12 | 8.8 ms | 60 053 | 0/12 | 6.4 ms |
+
+Those p99s do not line up with the release table above, and that is the stand rather than the
+builds: rebuilt and run in the same sweep as 3.6.0 three days later, the patched arm measured
+23.7 ms against the release's 24.1, 0 of 10 slow in both. Between sweeps the slow-run share is the
+column that survives; compare p99s only inside one sweep.
 
 ## What it is
 

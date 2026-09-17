@@ -37,3 +37,19 @@ takes `VUS` as the first thing to vary.
 Four runs per arm here, because this is a smoke check that the packaged reproducer behaves like the
 original probe. The numbers quoted in the issue come from twelve runs per arm and are in
 [README.md](README.md).
+
+## Re-run against the release
+
+17 September 2026, the same two hosts, this tree built twice from one source with `-PktorVersion`,
+arms interleaved run for run:
+
+```text
+load     2000 rps, 200 connections, 30s, 12 rounds per arm
+
+ktor 3.5.2   slow 12 of 12   p99 median   1.50 s   requests median   6 850
+ktor 3.6.0   slow  0 of 12   p99 median  23.7 ms   requests median  59 700
+```
+
+A second sweep the same day put the patched `ktor-io` of [PATCHING.md](PATCHING.md) beside the
+release: 0 of 10 slow in both arms, medians 23.7 ms and 24.1 ms. The release behaves like the patch
+it shipped, and the 8.4 ms in [README.md](README.md) belongs to the day it was measured on.
